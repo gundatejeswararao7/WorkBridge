@@ -2,16 +2,37 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 class ApiClient {
   private getToken(): string | null {
-    const storageKey = `sb-${import.meta.env.VITE_SUPABASE_URL?.split('//')[1]?.split('.')[0]}-auth-token`;
-    const session = localStorage.getItem(storageKey);
-    if (session) {
-      try {
-        const parsed = JSON.parse(session);
-        return parsed.access_token || null;
-      } catch {
-        return null;
+    // 1. Scan localStorage for any sb-*-auth-token key created by Supabase
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+          const session = localStorage.getItem(key);
+          if (session) {
+            const parsed = JSON.parse(session);
+            if (parsed?.access_token) {
+              return parsed.access_token;
+            }
+          }
+        }
       }
+    } catch {
+      // ignore
     }
+
+    // 2. Direct key calculation fallback
+    try {
+      const host = import.meta.env.VITE_SUPABASE_URL?.split('//')[1]?.split('.')[0];
+      const storageKey = `sb-${host}-auth-token`;
+      const session = localStorage.getItem(storageKey);
+      if (session) {
+        const parsed = JSON.parse(session);
+        return parsed?.access_token || null;
+      }
+    } catch {
+      // ignore
+    }
+
     return null;
   }
 
@@ -32,7 +53,13 @@ class ApiClient {
       const error = await response.json().catch(() => ({ error: 'Request failed' }));
       throw new Error(error.error || 'Request failed');
     }
-    return response.json();
+    
+    const json = await response.json();
+    // Auto-unwrap `{ data: ... }` if backend wrapped payload in data property
+    if (json && typeof json === 'object' && 'data' in json) {
+      return json.data as T;
+    }
+    return json as T;
   }
 
   get<T>(endpoint: string) { return this.request<T>(endpoint); }

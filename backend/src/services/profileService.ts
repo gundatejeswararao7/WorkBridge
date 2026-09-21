@@ -6,9 +6,50 @@ export const getProfile = async (userId: string) => {
     .from('profiles')
     .select('*')
     .eq('id', userId)
-    .single();
+    .maybeSingle();
 
   if (profileError) throw profileError;
+
+  // If profile row doesn't exist yet, initialize one gracefully
+  if (!profile) {
+    let email = '';
+    let fullName = '';
+    try {
+      const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId);
+      email = userData?.user?.email || '';
+      fullName = userData?.user?.user_metadata?.full_name || '';
+    } catch {
+      // ignore
+    }
+
+    const defaultProfile = {
+      id: userId,
+      email: email,
+      full_name: fullName,
+      about: '',
+      profession: '',
+      location: '',
+      latitude: null,
+      longitude: null,
+      experience: '',
+      availability: 'available' as const,
+      category: 'both' as const,
+      profile_photo_url: '',
+      work_can_provide: '',
+      work_interested_in: '',
+    };
+
+    const { data: inserted, error: insertError } = await supabaseAdmin
+      .from('profiles')
+      .upsert(defaultProfile)
+      .select()
+      .single();
+
+    if (!insertError && inserted) {
+      return { ...inserted, skills: [] };
+    }
+    return { ...defaultProfile, skills: [] };
+  }
 
   const { data: skillsData, error: skillsError } = await supabaseAdmin
     .from('user_skills')
@@ -22,14 +63,17 @@ export const getProfile = async (userId: string) => {
 
   return {
     ...profile,
-    skills: skillsData.map((s: any) => s.skills),
+    skills: (skillsData || []).map((s: any) => s.skills).filter(Boolean),
   };
 };
 
 export const updateProfile = async (userId: string, data: Partial<Profile>) => {
+  // Strip virtual or non-column fields like 'skills'
+  const { skills, ...cleanData } = data as any;
+
   const { data: updatedProfile, error } = await supabaseAdmin
     .from('profiles')
-    .update(data)
+    .update(cleanData)
     .eq('id', userId)
     .select()
     .single();
@@ -39,7 +83,7 @@ export const updateProfile = async (userId: string, data: Partial<Profile>) => {
 };
 
 export const getProfileById = async (profileId: string) => {
-  return getProfile(profileId); // Reuse the same logic
+  return getProfile(profileId);
 };
 
 export const updateUserSkills = async (userId: string, skillIds: string[]) => {
@@ -50,7 +94,7 @@ export const updateUserSkills = async (userId: string, skillIds: string[]) => {
 
   if (deleteError) throw deleteError;
 
-  if (skillIds.length > 0) {
+  if (skillIds && skillIds.length > 0) {
     const inserts = skillIds.map((skillId) => ({ user_id: userId, skill_id: skillId }));
     const { error: insertError } = await supabaseAdmin
       .from('user_skills')
@@ -58,29 +102,34 @@ export const updateUserSkills = async (userId: string, skillIds: string[]) => {
       
     if (insertError) throw insertError;
   }
-  
-  return skillIds;
+
+  return { success: true };
 };
 
-export const uploadProfilePhoto = async (userId: string, file: { buffer: Buffer, mimetype: string, originalname: string }) => {
-  const path = `${userId}/${Date.now()}-${file.originalname}`;
-  
-  const { data, error } = await supabaseAdmin
-    .storage
+export const uploadProfilePhoto = async (
+  userId: string,
+  file: { buffer: Buffer; mimetype: string; originalname: string }
+) => {
+  const fileExt = file.originalname.split('.').pop() || 'jpg';
+  const filePath = `${userId}/${Date.now()}.${fileExt}`;
+
+  const { error: uploadError } = await supabaseAdmin.storage
     .from('profile-photos')
-    .upload(path, file.buffer, {
+    .upload(filePath, file.buffer, {
       contentType: file.mimetype,
       upsert: true,
     });
 
-  if (error) throw error;
+  if (uploadError) throw uploadError;
 
-  const { data: publicUrlData } = supabaseAdmin
-    .storage
+  const { data } = supabaseAdmin.storage
     .from('profile-photos')
-    .getPublicUrl(path);
+    .getPublicUrl(filePath);
 
-  await updateProfile(userId, { profile_photo_url: publicUrlData.publicUrl });
+  await supabaseAdmin
+    .from('profiles')
+    .update({ profile_photo_url: data.publicUrl })
+    .eq('id', userId);
 
-  return publicUrlData.publicUrl;
+  return data.publicUrl;
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, MapPin, Briefcase, Info, Upload } from 'lucide-react';
+import { User, Upload } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../lib/api';
 import { cities } from '../data/cities';
@@ -21,38 +21,60 @@ export const ProfilePage: React.FC = () => {
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   
   const { latitude, longitude, loading: geoLoading, getCurrentLocation } = useGeoLocation();
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchData = async () => {
       try {
         const [profileData, skillsData] = await Promise.all([
-          api.get<Profile>('/profiles/me'),
-          api.get<Skill[]>('/skills')
+          api.get<any>('/profiles/me').catch(err => {
+            console.error('Failed to load profile:', err);
+            return null;
+          }),
+          api.get<any>('/skills').catch(err => {
+            console.error('Failed to load skills:', err);
+            return [];
+          })
         ]);
-        
-        setProfile(profileData);
-        if (profileData.location) {
-          const isCity = cities.some(c => c.name === profileData.location);
-          if (isCity) setSelectedCity(profileData.location);
-          else if (profileData.latitude) setSelectedCity('current');
+
+        if (!isMounted) return;
+
+        // Unpack data safely
+        const prof = (profileData && profileData.data) ? profileData.data : (profileData || {});
+        const sks: Skill[] = Array.isArray(skillsData)
+          ? skillsData
+          : (skillsData && Array.isArray(skillsData.data) ? skillsData.data : []);
+
+        setProfile(prof);
+
+        if (prof.location) {
+          const isCity = cities.some(c => c.name === prof.location);
+          if (isCity) setSelectedCity(prof.location);
+          else if (prof.latitude) setSelectedCity('current');
         }
         
-        if (profileData.skills) {
-          setSelectedSkills(profileData.skills.map(s => s.id));
+        if (prof.skills && Array.isArray(prof.skills)) {
+          setSelectedSkills(prof.skills.map((s: any) => s.id));
         }
         
-        setAllSkills(skillsData);
+        setAllSkills(sks);
       } catch (error) {
         console.error('Failed to fetch profile data', error);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     fetchData();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -78,17 +100,31 @@ export const ProfilePage: React.FC = () => {
     if (!file) return;
 
     try {
+      setUploadingPhoto(true);
       const reader = new FileReader();
       reader.onloadend = async () => {
-        const base64 = reader.result as string;
-        await api.post('/profiles/me/photo', { photo_data: base64 });
-        setProfile(prev => ({ ...prev, profile_photo_url: base64 }));
-        setMessage({ type: 'success', text: 'Photo updated successfully!' });
+        try {
+          const base64 = reader.result as string;
+          const res = await api.post<any>('/profiles/me/photo', {
+            photo: base64,
+            filename: file.name,
+            mimetype: file.type,
+          });
+          const uploadedUrl = res?.url || (res && res.data && res.data.url) || base64;
+          setProfile(prev => ({ ...prev, profile_photo_url: uploadedUrl }));
+          setMessage({ type: 'success', text: 'Photo updated successfully!' });
+        } catch (err: any) {
+          console.error('Photo upload error', err);
+          setMessage({ type: 'error', text: err.message || 'Failed to upload photo' });
+        } finally {
+          setUploadingPhoto(false);
+        }
       };
       reader.readAsDataURL(file);
-    } catch (error) {
-      console.error('Failed to upload photo', error);
-      setMessage({ type: 'error', text: 'Failed to upload photo' });
+    } catch (error: any) {
+      console.error('Failed to process file', error);
+      setMessage({ type: 'error', text: 'Failed to process image file' });
+      setUploadingPhoto(false);
     }
   };
 
@@ -125,7 +161,7 @@ export const ProfilePage: React.FC = () => {
       await api.put('/profiles/me', updateData);
       
       // Update skills
-      await api.put('/profiles/me/skills', { skill_ids: selectedSkills });
+      await api.put('/profiles/me/skills', { skillIds: selectedSkills });
       
       setMessage({ type: 'success', text: 'Profile saved successfully!' });
     } catch (error: any) {
@@ -136,7 +172,18 @@ export const ProfilePage: React.FC = () => {
     }
   };
 
-  if (loading) return <div className="p-8 text-center">Loading profile...</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+        <span className="ml-3 text-gray-600">Loading profile...</span>
+      </div>
+    );
+  }
+
+  const safeSkills = Array.isArray(allSkills) ? allSkills : [];
+  const techSkills = safeSkills.filter(s => s.category === 'tech');
+  const nonTechSkills = safeSkills.filter(s => s.category === 'non-tech');
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -148,7 +195,7 @@ export const ProfilePage: React.FC = () => {
       </div>
 
       {message.text && (
-        <div className={`p-4 rounded-lg mb-6 text-sm ${message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+        <div className={`p-4 rounded-lg mb-6 text-sm ${message.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
           {message.text}
         </div>
       )}
@@ -159,7 +206,12 @@ export const ProfilePage: React.FC = () => {
           
           <div className="flex flex-col md:flex-row gap-8 mb-6">
             <div className="flex flex-col items-center gap-3">
-              <Avatar url={profile.profile_photo_url} name={profile.full_name} size="lg" className="w-32 h-32 text-4xl" />
+              <Avatar 
+                url={profile.profile_photo_url} 
+                name={profile.full_name || user?.email || 'User'} 
+                size="lg" 
+                className="w-32 h-32 text-4xl" 
+              />
               <div>
                 <input 
                   type="file" 
@@ -167,12 +219,14 @@ export const ProfilePage: React.FC = () => {
                   accept="image/*" 
                   className="hidden" 
                   onChange={handlePhotoUpload}
+                  disabled={uploadingPhoto}
                 />
                 <label 
                   htmlFor="photo-upload" 
-                  className="cursor-pointer inline-flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  className={`cursor-pointer inline-flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${uploadingPhoto ? 'opacity-60 cursor-not-allowed' : ''}`}
                 >
-                  <Upload className="w-4 h-4 mr-2" /> Upload Photo
+                  <Upload className="w-4 h-4 mr-2" />
+                  {uploadingPhoto ? 'Uploading...' : 'Upload Photo'}
                 </label>
               </div>
             </div>
@@ -183,17 +237,18 @@ export const ProfilePage: React.FC = () => {
                 required
                 value={profile.full_name || ''}
                 onChange={(e) => handleInputChange('full_name', e.target.value)}
+                placeholder="Your display name"
               />
               <Input
                 label="Email Address"
                 type="email"
-                value={user?.email || ''}
+                value={user?.email || profile.email || ''}
                 disabled
-                className="bg-gray-50"
+                className="bg-gray-50 text-gray-500"
               />
               <Input
                 label="Profession / Title"
-                placeholder="e.g. Software Engineer, Plumber, Designer..."
+                placeholder="e.g. Software Engineer, Plumber, Graphic Designer..."
                 value={profile.profession || ''}
                 onChange={(e) => handleInputChange('profession', e.target.value)}
               />
@@ -238,12 +293,12 @@ export const ProfilePage: React.FC = () => {
                     type="button"
                     onClick={() => handleInputChange('category', cat)}
                     className={`flex-1 px-3 py-2 text-sm font-medium border ${
-                      profile.category === cat
+                      (profile.category || 'both') === cat
                         ? 'bg-indigo-50 border-indigo-200 text-indigo-700 z-10'
                         : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
                     } ${cat === 'tech' ? 'rounded-l-md' : cat === 'both' ? 'rounded-r-md' : '-ml-px'}`}
                   >
-                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                    {cat === 'tech' ? 'Tech' : cat === 'non-tech' ? 'Non-Tech' : 'Both'}
                   </button>
                 ))}
               </div>
@@ -302,52 +357,59 @@ export const ProfilePage: React.FC = () => {
           
           <div className="mb-6">
             <h3 className="text-sm font-medium text-emerald-800 mb-2">Tech Skills</h3>
-            <div className="flex flex-wrap gap-2 p-4 bg-emerald-50/50 rounded-lg border border-emerald-100">
-              {allSkills.filter(s => s.category === 'tech').map((skill) => (
-                <button
-                  key={skill.id}
-                  type="button"
-                  onClick={() => handleSkillToggle(skill.id)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
-                    selectedSkills.includes(skill.id)
-                      ? 'bg-emerald-200 text-emerald-900 border-emerald-300'
-                      : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'
-                  }`}
-                >
-                  {skill.name}
-                </button>
-              ))}
+            <div className="flex flex-wrap gap-2 p-4 bg-emerald-50/50 rounded-lg border border-emerald-100 min-h-[50px]">
+              {techSkills.length === 0 ? (
+                <span className="text-xs text-gray-400">Loading skills...</span>
+              ) : (
+                techSkills.map((skill) => (
+                  <button
+                    key={skill.id}
+                    type="button"
+                    onClick={() => handleSkillToggle(skill.id)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
+                      selectedSkills.includes(skill.id)
+                        ? 'bg-emerald-200 text-emerald-900 border-emerald-300'
+                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'
+                    }`}
+                  >
+                    {skill.name}
+                  </button>
+                ))
+              )}
             </div>
           </div>
           
           <div>
             <h3 className="text-sm font-medium text-amber-800 mb-2">Non-Tech Skills</h3>
-            <div className="flex flex-wrap gap-2 p-4 bg-amber-50/50 rounded-lg border border-amber-100">
-              {allSkills.filter(s => s.category === 'non-tech').map((skill) => (
-                <button
-                  key={skill.id}
-                  type="button"
-                  onClick={() => handleSkillToggle(skill.id)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
-                    selectedSkills.includes(skill.id)
-                      ? 'bg-amber-200 text-amber-900 border-amber-300'
-                      : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'
-                  }`}
-                >
-                  {skill.name}
-                </button>
-              ))}
+            <div className="flex flex-wrap gap-2 p-4 bg-amber-50/50 rounded-lg border border-amber-100 min-h-[50px]">
+              {nonTechSkills.length === 0 ? (
+                <span className="text-xs text-gray-400">Loading skills...</span>
+              ) : (
+                nonTechSkills.map((skill) => (
+                  <button
+                    key={skill.id}
+                    type="button"
+                    onClick={() => handleSkillToggle(skill.id)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
+                      selectedSkills.includes(skill.id)
+                        ? 'bg-amber-200 text-amber-900 border-amber-300'
+                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'
+                    }`}
+                  >
+                    {skill.name}
+                  </button>
+                ))
+              )}
             </div>
           </div>
         </Card>
 
-        <div className="flex justify-end gap-4 pb-12">
-          <Button 
-            type="submit" 
-            variant="primary" 
-            size="lg" 
+        <div className="flex justify-end gap-4">
+          <Button
+            type="submit"
+            variant="primary"
             disabled={saving}
-            className="px-8"
+            className="px-8 py-3 text-base shadow-md"
           >
             {saving ? 'Saving...' : 'Save Profile'}
           </Button>
@@ -356,3 +418,5 @@ export const ProfilePage: React.FC = () => {
     </div>
   );
 };
+
+export default ProfilePage;

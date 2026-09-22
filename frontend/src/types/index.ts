@@ -17,6 +17,7 @@ export interface Profile {
   updated_at: string;
   skills?: Skill[];
   distance_km?: number | null;
+  work_mode?: 'remote' | 'in-office' | 'hybrid';
 }
 
 export interface Skill {

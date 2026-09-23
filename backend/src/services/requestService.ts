@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../config/supabase';
+import { getOrCreateChat } from './chatService';
 
 export const createRequest = async (workId: string, requesterId: string, message: string) => {
   // Check the work opportunity and creator
@@ -107,6 +108,14 @@ export const acceptRequest = async (requestId: string, userId: string) => {
     .eq('id', request.work_id);
 
   if (workError) throw workError;
+
+  // ── Auto-create workspace chat between creator and worker ──
+  try {
+    await getOrCreateChat(request.work_id, userId, request.requester_id);
+  } catch (chatErr) {
+    // Non-fatal: log but don't fail the acceptance
+    console.error('Failed to auto-create chat:', chatErr);
+  }
 
   // Reject all other pending requests for this work
   await supabaseAdmin

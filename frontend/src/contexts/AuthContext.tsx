@@ -11,6 +11,10 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
+  // OTP flow
+  sendOtp: (email: string, fullName: string) => Promise<void>;
+  verifyOtp: (email: string, otp: string) => Promise<{ fullName: string }>;
+  completeSignup: (email: string, password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -36,8 +40,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Legacy signup (kept for compatibility)
   const signUp = async (email: string, password: string, fullName: string) => {
-    await api.post('/auth/signup', { email, password, fullName });
+    await api.post('/auth/complete-signup', { email, password });
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
   };
@@ -56,8 +61,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await api.post('/auth/reset-password', { email });
   };
 
+  // ── OTP Registration Flow ──────────────────────────────────
+  const sendOtp = async (email: string, fullName: string) => {
+    await api.post('/auth/send-otp', { email, fullName });
+  };
+
+  const verifyOtp = async (email: string, otp: string): Promise<{ fullName: string }> => {
+    const result = await api.post<{ fullName: string }>('/auth/verify-otp', { email, otp });
+    return result;
+  };
+
+  const completeSignup = async (email: string, password: string) => {
+    await api.post('/auth/complete-signup', { email, password });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut, resetPassword }}>
+    <AuthContext.Provider value={{
+      user, session, loading,
+      signUp, signIn, signOut, resetPassword,
+      sendOtp, verifyOtp, completeSignup,
+    }}>
       {children}
     </AuthContext.Provider>
   );

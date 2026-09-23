@@ -11,6 +11,7 @@ import searchRoutes from './routes/search';
 import workRoutes from './routes/works';
 import requestRoutes from './routes/requests';
 import reviewRoutes from './routes/reviews';
+import chatRoutes from './routes/chats';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -25,6 +26,7 @@ app.use('/api/users', searchRoutes);
 app.use('/api/works', workRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/chats', chatRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);

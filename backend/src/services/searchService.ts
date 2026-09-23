@@ -21,15 +21,24 @@ export const searchPeople = async (params: {
   longitude?: number;
   radius?: number;
   availability?: string;
+  excludeUserId?: string;
 }) => {
-  const { data, error } = await supabaseAdmin
+  let dbQuery = supabaseAdmin
     .from('profiles')
     .select('*, user_skills(skills(*))');
+
+  if (params.excludeUserId) {
+    dbQuery = dbQuery.neq('id', params.excludeUserId);
+  }
+
+  const { data, error } = await dbQuery;
 
   if (error) throw error;
   if (!data) return [];
 
-  let candidates = data.map((p: any) => {
+  let candidates = data
+    .filter((p: any) => !params.excludeUserId || p.id !== params.excludeUserId)
+    .map((p: any) => {
     const rawSkills = (p.user_skills || [])
       .map((us: any) => us.skills)
       .filter(Boolean);

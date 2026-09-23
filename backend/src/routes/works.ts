@@ -7,11 +7,13 @@ const router = Router();
 
 router.use(authenticate);
 
-router.get('/', async (req, res) => {
+router.get('/', async (req: any, res) => {
   try {
     const filters = {
       category: req.query.category as string,
       status: req.query.status as string,
+      creator_id: req.query.creator as string || req.query.creator_id as string,
+      excludeCreatorId: req.user?.id,
     };
     const works = await workService.getWorks(filters);
     res.status(200).json({ data: works });

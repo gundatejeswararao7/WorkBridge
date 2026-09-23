@@ -2,6 +2,11 @@ import { supabaseAdmin } from '../config/supabase';
 import { Work } from '../types';
 
 export const createWork = async (data: Partial<Work> & { creator_id: string }) => {
+  // Prevent assigning work to oneself
+  if (data.assigned_to && data.assigned_to === data.creator_id) {
+    throw new Error('You cannot assign work to yourself.');
+  }
+
   const { data: work, error } = await supabaseAdmin
     .from('works')
     .insert(data)
@@ -12,7 +17,7 @@ export const createWork = async (data: Partial<Work> & { creator_id: string }) =
   return work;
 };
 
-export const getWorks = async (filters?: { category?: string, status?: string }) => {
+export const getWorks = async (filters?: { category?: string; status?: string; excludeCreatorId?: string; creator_id?: string }) => {
   let query = supabaseAdmin
     .from('works')
     .select(`
@@ -28,6 +33,12 @@ export const getWorks = async (filters?: { category?: string, status?: string })
 
   if (filters?.category) {
     query = query.eq('category', filters.category);
+  }
+
+  if (filters?.creator_id) {
+    query = query.eq('creator_id', filters.creator_id);
+  } else if (filters?.excludeCreatorId) {
+    query = query.neq('creator_id', filters.excludeCreatorId);
   }
 
   const { data, error } = await query;
@@ -51,6 +62,11 @@ export const getWorkById = async (id: string) => {
 };
 
 export const updateWork = async (id: string, userId: string, data: Partial<Work>) => {
+  // Prevent assigning work to oneself
+  if (data.assigned_to && data.assigned_to === userId) {
+    throw new Error('You cannot assign work to yourself.');
+  }
+
   const { data: work, error } = await supabaseAdmin
     .from('works')
     .update(data)

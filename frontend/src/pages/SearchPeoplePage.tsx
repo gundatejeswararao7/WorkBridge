@@ -20,6 +20,7 @@ import {
 import { api } from '../lib/api';
 import { cities } from '../data/cities';
 import { useLocation as useGeoLocation } from '../hooks/useLocation';
+import { useAuth } from '../contexts/AuthContext';
 import { ProfileCard } from '../components/ProfileCard';
 import { Avatar } from '../components/ui/Avatar';
 import type { Profile } from '../types';
@@ -42,6 +43,8 @@ function getNearestCityName(lat: number, lng: number): string | null {
 }
 
 export const SearchPeoplePage: React.FC = () => {
+  const { user } = useAuth();
+
   // Search parameters
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<'all' | 'tech' | 'non-tech'>('all');
@@ -91,6 +94,11 @@ export const SearchPeoplePage: React.FC = () => {
 
       const data = await api.get<Profile[]>(`/users/search?${queryParams.toString()}`);
       let candidateList = Array.isArray(data) ? data : [];
+
+      // Account Visibility Rule: Exclude the current logged-in user from candidate search
+      if (user?.id) {
+        candidateList = candidateList.filter((p) => p.id !== user.id);
+      }
 
       // Filter by location text if free text entered without exact lat/lng
       if (locationInput.trim() && !locationInput.startsWith('Current Location') && !lat) {
@@ -645,13 +653,22 @@ export const SearchPeoplePage: React.FC = () => {
                   <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
 
-                <Link
-                  to={`/give-work?assignTo=${activeCandidateModal.id}`}
-                  className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white text-xs font-bold shadow-md shadow-indigo-100 transition-all duration-200"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>Give Work</span>
-                </Link>
+                {activeCandidateModal.id !== user?.id ? (
+                  <Link
+                    to={`/give-work?assignTo=${activeCandidateModal.id}`}
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white text-xs font-bold shadow-md shadow-indigo-100 transition-all duration-200"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>Give Work</span>
+                  </Link>
+                ) : (
+                  <Link
+                    to="/profile"
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all duration-200"
+                  >
+                    <span>Edit My Profile</span>
+                  </Link>
+                )}
               </div>
             </div>
           </div>

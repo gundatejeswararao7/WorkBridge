@@ -7,11 +7,13 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Avatar } from '../components/ui/Avatar';
 import { SkillBadge } from '../components/SkillBadge';
+import { useAuth } from '../contexts/AuthContext';
 import type { Profile, Review } from '../types';
 
 export const UserProfilePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   
   const [profile, setProfile] = useState<Profile | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -68,9 +70,15 @@ export const UserProfilePage: React.FC = () => {
               </div>
               
               <div className="flex gap-2">
-                <Link to={`/give-work?assignTo=${profile.id}`}>
-                  <Button variant="primary">Give Work to {profile.full_name.split(' ')[0]}</Button>
-                </Link>
+                {user?.id !== profile.id ? (
+                  <Link to={`/give-work?assignTo=${profile.id}`}>
+                    <Button variant="primary">Give Work to {profile.full_name?.split(' ')[0] || 'Member'}</Button>
+                  </Link>
+                ) : (
+                  <Link to="/profile">
+                    <Button variant="primary">Edit My Profile</Button>
+                  </Link>
+                )}
                 <Link to={`/browse-work?creator=${profile.id}`}>
                   <Button variant="outline">View Their Posts</Button>
                 </Link>

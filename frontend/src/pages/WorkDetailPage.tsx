@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { MapPin, Calendar, IndianRupee, Clock, User, ArrowLeft, Send } from 'lucide-react';
+import { MapPin, Calendar, IndianRupee, Clock, User, ArrowLeft, Send, Lock, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../lib/api';
 import { Card } from '../components/ui/Card';
@@ -47,6 +47,10 @@ export const WorkDetailPage: React.FC = () => {
   }, [id, user?.id]);
 
   const handleRequestWork = async () => {
+    if (isCreator) {
+      setRequestError('You cannot apply to or accept your own posted work.');
+      return;
+    }
     setSubmittingRequest(true);
     setRequestError('');
     try {
@@ -192,8 +196,33 @@ export const WorkDetailPage: React.FC = () => {
               </Button>
             )}
 
-            {isCreator && (
+            {isCreator && isOpen && (
               <div className="space-y-3">
+                <button
+                  type="button"
+                  disabled
+                  className="w-full py-3 px-4 rounded-xl bg-slate-100 text-slate-400 font-semibold text-sm cursor-not-allowed border border-slate-200 flex items-center justify-center gap-2 select-none"
+                  title="You cannot apply to or accept your own posted work."
+                >
+                  <Lock className="w-4 h-4" />
+                  <span>Request to Take Work (Disabled)</span>
+                </button>
+
+                <div
+                  className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50/90 border border-amber-200/80 text-amber-800 text-xs shadow-2xs"
+                  title="You cannot apply to or accept your own posted work."
+                >
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-semibold block text-amber-900">Notice</span>
+                    <span className="text-amber-700">You cannot apply to or accept your own posted work.</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {isCreator && (
+              <div className="space-y-3 mt-3">
                 <Button 
                   variant="danger" 
                   className="w-full"

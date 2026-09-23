@@ -7,7 +7,7 @@ const router = Router();
 
 router.use(authenticate);
 
-router.get('/search', async (req, res) => {
+router.get('/search', async (req: any, res) => {
   try {
     const query = req.query.q as string;
     const category = req.query.category as string;
@@ -15,6 +15,7 @@ router.get('/search', async (req, res) => {
     const longitude = req.query.lng ? parseFloat(req.query.lng as string) : undefined;
     const radius = req.query.radius ? parseFloat(req.query.radius as string) : undefined;
     const availability = req.query.availability as string;
+    const currentUserId = req.user?.id;
 
     const results = await searchService.searchPeople({
       query,
@@ -22,7 +23,8 @@ router.get('/search', async (req, res) => {
       latitude,
       longitude,
       radius,
-      availability
+      availability,
+      excludeUserId: currentUserId,
     });
     
     res.status(200).json({ data: results });

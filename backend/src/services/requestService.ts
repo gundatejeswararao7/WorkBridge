@@ -1,6 +1,40 @@
 import { supabaseAdmin } from '../config/supabase';
 
 export const createRequest = async (workId: string, requesterId: string, message: string) => {
+  // Check the work opportunity and creator
+  const { data: work, error: workError } = await supabaseAdmin
+    .from('works')
+    .select('id, creator_id, status')
+    .eq('id', workId)
+    .single();
+
+  if (workError || !work) {
+    throw new Error('Work opportunity not found');
+  }
+
+  // Strict rule: prevent self-request / self-application
+  if (work.creator_id === requesterId) {
+    throw new Error('You cannot apply to or accept your own posted work.');
+  }
+
+  if (work.status !== 'open') {
+    throw new Error('This work opportunity is no longer open.');
+  }
+
+  // Check if an active request already exists from this requester
+  const { data: existingReq } = await supabaseAdmin
+    .from('work_requests')
+    .select('id, status')
+    .eq('work_id', workId)
+    .eq('requester_id', requesterId)
+    .neq('status', 'cancelled')
+    .neq('status', 'rejected')
+    .maybeSingle();
+
+  if (existingReq) {
+    throw new Error('You have already submitted a request for this work.');
+  }
+
   const { data, error } = await supabaseAdmin
     .from('work_requests')
     .insert({ work_id: workId, requester_id: requesterId, message })
@@ -48,8 +82,13 @@ export const acceptRequest = async (requestId: string, userId: string) => {
     .eq('id', requestId)
     .single();
 
-  if (fetchError) throw fetchError;
+  if (fetchError || !request) throw new Error('Request not found');
   if ((request.work as any).creator_id !== userId) throw new Error('Unauthorized');
+
+  // Prevent self-assignment
+  if (request.requester_id === userId) {
+    throw new Error('You cannot assign work to yourself.');
+  }
 
   // Accept this request
   const { data: updatedReq, error: acceptError } = await supabaseAdmin

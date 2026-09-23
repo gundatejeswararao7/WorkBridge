@@ -8,9 +8,11 @@ import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { Select } from '../components/ui/Select';
 import { Card } from '../components/ui/Card';
+import { useAuth } from '../contexts/AuthContext';
 import type { Skill } from '../types';
 
 export const GiveWorkPage: React.FC = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const assignTo = searchParams.get('assignTo');
@@ -60,6 +62,10 @@ export const GiveWorkPage: React.FC = () => {
     e.preventDefault();
     if (!title || !description) {
       return setError('Title and description are required');
+    }
+
+    if (assignTo && user?.id && assignTo === user.id) {
+      return setError('You cannot assign work to yourself.');
     }
 
     setLoading(true);

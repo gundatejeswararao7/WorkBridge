@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Activity } from 'lucide-react';
 import { api } from '../lib/api';
+import { useAuth } from '../contexts/AuthContext';
 import { Input } from '../components/ui/Input';
 import { WorkCard } from '../components/WorkCard';
 import type { Work } from '../types';
 
 export const BrowseWorkPage: React.FC = () => {
+  const { user } = useAuth();
   const [works, setWorks] = useState<Work[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
@@ -30,11 +32,13 @@ export const BrowseWorkPage: React.FC = () => {
     fetchWorks();
   }, [category]);
 
-  const filteredWorks = works.filter(work => 
-    work.title.toLowerCase().includes(query.toLowerCase()) || 
-    work.description.toLowerCase().includes(query.toLowerCase()) ||
-    work.required_skills?.some(s => s.toLowerCase().includes(query.toLowerCase()))
-  );
+  const filteredWorks = works
+    .filter(work => !user?.id || work.creator_id !== user.id)
+    .filter(work => 
+      work.title.toLowerCase().includes(query.toLowerCase()) || 
+      work.description.toLowerCase().includes(query.toLowerCase()) ||
+      work.required_skills?.some(s => s.toLowerCase().includes(query.toLowerCase()))
+    );
 
   return (
     <div className="space-y-6">

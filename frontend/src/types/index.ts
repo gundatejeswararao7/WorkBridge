@@ -18,6 +18,11 @@ export interface Profile {
   skills?: Skill[];
   distance_km?: number | null;
   work_mode?: 'remote' | 'in-office' | 'hybrid';
+  delayed_work_count?: number;
+  completed_jobs_count?: number;
+  reputation_status?: 'fresher' | 'reliable' | 'delayed';
+  average_rating?: number;
+  review_count?: number;
 }
 
 export interface Skill {

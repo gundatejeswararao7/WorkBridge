@@ -64,6 +64,17 @@ export const GiveWorkPage: React.FC = () => {
       return setError('Title and description are required');
     }
 
+    if (!deadline) {
+      return setError('A completion deadline date is mandatory.');
+    }
+
+    const selectedDeadline = new Date(deadline);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (selectedDeadline < today) {
+      return setError('Deadline cannot be in the past. Please select a valid future date.');
+    }
+
     if (assignTo && user?.id && assignTo === user.id) {
       return setError('You cannot assign work to yourself.');
     }
@@ -247,8 +258,10 @@ export const GiveWorkPage: React.FC = () => {
             />
 
             <Input
-              label="Deadline (Optional)"
+              label="Completion Deadline"
+              required
               type="date"
+              min={new Date().toISOString().split('T')[0]}
               value={deadline}
               onChange={(e) => setDeadline(e.target.value)}
               icon={<Calendar className="w-5 h-5" />}

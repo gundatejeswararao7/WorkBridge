@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { MapPin, Clock, ArrowLeft, Star, Briefcase, User as UserIcon } from 'lucide-react';
+import { MapPin, Clock, ArrowLeft, Star, Briefcase, User as UserIcon, CheckCircle2, AlertTriangle, ShieldCheck, Award } from 'lucide-react';
 import { api } from '../lib/api';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Avatar } from '../components/ui/Avatar';
 import { SkillBadge } from '../components/SkillBadge';
+import { ReputationBadge } from '../components/ReputationBadge';
 import { useAuth } from '../contexts/AuthContext';
 import type { Profile, Review } from '../types';
 
@@ -97,6 +98,12 @@ export const UserProfilePage: React.FC = () => {
               <Badge variant={profile.category === 'tech' ? 'tech' : profile.category === 'non-tech' ? 'non-tech' : 'default'}>
                 {profile.category === 'both' ? 'Tech & Non-Tech' : profile.category}
               </Badge>
+              <ReputationBadge
+                delayCount={profile.delayed_work_count}
+                completedJobs={profile.completed_jobs_count}
+                status={profile.reputation_status}
+                size="md"
+              />
             </div>
           </div>
         </div>
@@ -139,6 +146,74 @@ export const UserProfilePage: React.FC = () => {
         </div>
 
         <div className="space-y-6">
+          {/* Reputation & Delivery Performance Card */}
+          <Card className="p-6 border border-slate-200/90 shadow-sm">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-2">
+              <Award className="w-4 h-4 text-indigo-600" />
+              <span>Reputation & Standing</span>
+            </h2>
+
+            <div className="space-y-4">
+              <div>
+                <ReputationBadge
+                  delayCount={profile.delayed_work_count}
+                  completedJobs={profile.completed_jobs_count}
+                  status={profile.reputation_status}
+                  size="lg"
+                  className="w-full justify-center py-2"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-center">
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Jobs Done</p>
+                  <p className="text-xl font-extrabold text-slate-900 mt-0.5">
+                    {profile.completed_jobs_count || 0}
+                  </p>
+                </div>
+
+                <div className={`p-3 rounded-xl border text-center ${
+                  (profile.delayed_work_count || 0) > 0
+                    ? 'bg-rose-50 border-rose-100'
+                    : 'bg-emerald-50 border-emerald-100'
+                }`}>
+                  <p className={`text-[11px] font-bold uppercase tracking-wider ${
+                    (profile.delayed_work_count || 0) > 0 ? 'text-rose-700' : 'text-emerald-700'
+                  }`}>
+                    Delay Count
+                  </p>
+                  <p className={`text-xl font-extrabold mt-0.5 ${
+                    (profile.delayed_work_count || 0) > 0 ? 'text-rose-900' : 'text-emerald-900'
+                  }`}>
+                    {profile.delayed_work_count || 0}
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-100 flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Star className="w-4 h-4 text-amber-500 fill-amber-400" />
+                  <span className="text-xs font-bold text-slate-800">
+                    {profile.average_rating ? `${profile.average_rating.toFixed(1)} / 5.0` : 'No reviews yet'}
+                  </span>
+                </div>
+                <span className="text-xs text-slate-500 font-medium">
+                  {reviews.length} {reviews.length === 1 ? 'review' : 'reviews'}
+                </span>
+              </div>
+
+              {(profile.delayed_work_count || 0) > 0 ? (
+                <p className="text-[11px] text-rose-600 bg-rose-50/60 p-2.5 rounded-xl border border-rose-100 leading-relaxed">
+                  ⚠️ <strong>Delay Recovery Rule:</strong> Each subsequent project completed and submitted on or before deadline automatically reduces delay count by 1 (down to 0).
+                </p>
+              ) : (profile.completed_jobs_count || 0) > 0 ? (
+                <p className="text-[11px] text-emerald-700 bg-emerald-50/60 p-2.5 rounded-xl border border-emerald-100 leading-relaxed">
+                  ✅ <strong>Excellent Standing:</strong> Consistently delivers assigned work within scheduled deadlines.
+                </p>
+              ) : null}
+            </div>
+          </Card>
+
           <Card className="p-6">
             <h2 className="text-lg font-bold text-gray-900 mb-4">Skills</h2>
             {profile.skills && profile.skills.length > 0 ? (

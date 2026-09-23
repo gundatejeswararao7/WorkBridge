@@ -1,7 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { MapPin, Briefcase, Eye, Send, Sparkles, Laptop, Building2, Globe2, CheckCircle2 } from 'lucide-react';
+import { MapPin, Briefcase, Eye, Send, Sparkles, Laptop, Building2, Globe2, CheckCircle2, Star } from 'lucide-react';
 import { Avatar } from './ui/Avatar';
+import { ReputationBadge } from './ReputationBadge';
 import type { Profile } from '../types';
 
 interface ProfileCardProps {
@@ -122,6 +123,26 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, onQuickView }
               </span>
             )}
           </span>
+        </div>
+
+        {/* Reputation Badge & Rating Row */}
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <ReputationBadge
+            delayCount={profile.delayed_work_count}
+            completedJobs={profile.completed_jobs_count}
+            status={profile.reputation_status}
+            size="sm"
+          />
+
+          {profile.average_rating ? (
+            <div className="inline-flex items-center gap-1 text-xs font-bold text-slate-700 bg-amber-50/80 px-2 py-0.5 rounded-full border border-amber-200/70">
+              <Star className="w-3 h-3 text-amber-500 fill-amber-400" />
+              <span>{profile.average_rating.toFixed(1)}</span>
+              {profile.review_count ? (
+                <span className="text-[10px] text-slate-400 font-medium">({profile.review_count})</span>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         {/* Short Bio / About Snippet */}

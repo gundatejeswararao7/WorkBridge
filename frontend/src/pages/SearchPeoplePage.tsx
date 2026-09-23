@@ -16,12 +16,14 @@ import {
   RotateCcw,
   Navigation,
   AlertCircle,
+  Star,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { cities } from '../data/cities';
 import { useLocation as useGeoLocation } from '../hooks/useLocation';
 import { useAuth } from '../contexts/AuthContext';
 import { ProfileCard } from '../components/ProfileCard';
+import { ReputationBadge } from '../components/ReputationBadge';
 import { Avatar } from '../components/ui/Avatar';
 import type { Profile } from '../types';
 
@@ -594,6 +596,32 @@ export const SearchPeoplePage: React.FC = () => {
                     </span>
                   )}
                 </div>
+
+                {/* Reputation Badge + Star Rating */}
+                <div className="flex flex-wrap items-center gap-2 mt-3">
+                  <ReputationBadge
+                    delayCount={activeCandidateModal.delayed_work_count ?? 0}
+                    completedJobs={activeCandidateModal.completed_jobs_count ?? 0}
+                    status={activeCandidateModal.reputation_status}
+                    size="sm"
+                  />
+                  {typeof activeCandidateModal.average_rating === 'number' && activeCandidateModal.average_rating > 0 && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200/80 select-none">
+                      <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                      {activeCandidateModal.average_rating.toFixed(1)}
+                      <span className="font-normal text-amber-600 ml-0.5">
+                        ({activeCandidateModal.review_count ?? 0} review{(activeCandidateModal.review_count ?? 0) !== 1 ? 's' : ''})
+                      </span>
+                    </span>
+                  )}
+                  {activeCandidateModal.completed_jobs_count != null && activeCandidateModal.completed_jobs_count > 0 && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-50 text-slate-600 border border-slate-200/80">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                      {activeCandidateModal.completed_jobs_count} job{activeCandidateModal.completed_jobs_count !== 1 ? 's' : ''} done
+                    </span>
+                  )}
+                </div>
+
               </div>
 
               {/* Bio */}

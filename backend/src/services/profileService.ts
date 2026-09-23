@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../config/supabase';
+import { getUserReputation } from './reputationService';
 import { Profile } from '../types';
 
 export const getProfile = async (userId: string) => {
@@ -61,9 +62,18 @@ export const getProfile = async (userId: string) => {
 
   if (skillsError) throw skillsError;
 
+  const reputation = await getUserReputation(userId).catch(() => ({
+    delayed_work_count: 0,
+    completed_jobs_count: 0,
+    reputation_status: 'fresher' as const,
+    average_rating: 0,
+    review_count: 0,
+  }));
+
   return {
     ...profile,
     skills: (skillsData || []).map((s: any) => s.skills).filter(Boolean),
+    ...reputation,
   };
 };
 

@@ -24,6 +24,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../lib/api';
 import { Avatar } from '../components/ui/Avatar';
+import { ReputationBadge } from '../components/ReputationBadge';
 import type { Work, WorkRequest, Profile } from '../types';
 
 export const DashboardPage: React.FC = () => {
@@ -126,6 +127,29 @@ export const DashboardPage: React.FC = () => {
                 Two-Way Active
               </span>
             </div>
+
+            {/* Reputation badge row */}
+            {profile && (
+              <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                <ReputationBadge
+                  delayCount={profile.delayed_work_count ?? 0}
+                  completedJobs={profile.completed_jobs_count ?? 0}
+                  status={profile.reputation_status}
+                  size="sm"
+                />
+                {typeof profile.average_rating === 'number' && profile.average_rating > 0 && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200/80 select-none">
+                    ⭐ {profile.average_rating.toFixed(1)}
+                    <span className="font-normal text-amber-600">({profile.review_count ?? 0} review{(profile.review_count ?? 0) !== 1 ? 's' : ''})</span>
+                  </span>
+                )}
+                {(profile.completed_jobs_count ?? 0) > 0 && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-50 text-slate-500 border border-slate-200/80">
+                    {profile.completed_jobs_count} job{profile.completed_jobs_count !== 1 ? 's' : ''} completed
+                  </span>
+                )}
+              </div>
+            )}
 
             <p className="text-sm text-slate-500 flex flex-wrap items-center gap-y-1 gap-x-3">
               <span className="inline-flex items-center gap-1">

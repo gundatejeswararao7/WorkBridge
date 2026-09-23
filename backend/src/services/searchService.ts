@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../config/supabase';
+import { batchAttachReputation } from './reputationService';
 
 function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371; // Earth's radius in km
@@ -123,5 +124,5 @@ export const searchPeople = async (params: {
     });
   }
 
-  return candidates;
+  return await batchAttachReputation(candidates);
 };
